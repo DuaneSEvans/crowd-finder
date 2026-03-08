@@ -16,7 +16,7 @@ if (unknownArgs.length > 0) {
 
 const write = rawArgs.includes("--write")
 
-function run(command, args) {
+function run(command: string, args: string[]): number {
   const result = spawnSync(command, args, {
     cwd: process.cwd(),
     stdio: "inherit",
@@ -29,7 +29,7 @@ function run(command, args) {
   return result.status ?? 1
 }
 
-function isAuthenticated() {
+function isAuthenticated(): boolean {
   const result = spawnSync("bunx", ["supabase", "projects", "list"], {
     cwd: process.cwd(),
     stdio: ["ignore", "pipe", "pipe"],
@@ -43,11 +43,9 @@ function isAuthenticated() {
   return (result.status ?? 1) === 0
 }
 
-function ensureLinkedProject() {
+function ensureLinkedProject(): void {
   if (!isAuthenticated()) {
-    console.log(
-      "\nSupabase CLI is not authenticated. Starting interactive login...\n",
-    )
+    console.log("\nSupabase CLI is not authenticated. Starting interactive login...\n")
 
     const loginExitCode = run("bunx", ["supabase", "login"])
     if (loginExitCode !== 0) {
@@ -61,12 +59,13 @@ function ensureLinkedProject() {
     "--project-ref",
     projectRef,
   ])
+
   if (linkExitCode !== 0) {
     process.exit(linkExitCode)
   }
 }
 
-function pushMigrations() {
+function pushMigrations(): void {
   const pushArgs = ["supabase", "db", "push"]
 
   if (!write) {
