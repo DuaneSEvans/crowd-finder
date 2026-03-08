@@ -1,0 +1,51 @@
+:root {
+  font-family:
+    "Avenir Next", "Segoe UI", "Helvetica Neue", Helvetica, sans-serif;
+  line-height: 1.4;
+  font-weight: 400;
+  color: #0f172a;
+  background-color: #f5f1e8;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #f5f1e8;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#root {
+  padding: 0;
+  max-width: none;
+  margin: 0;
+  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+}
+
+/*
+todo: add these as thematic colors eventually
+--light-blue: #93b7beff;
+--chocolate-plum: #554348ff;
+--light-cyan: #d4f5f5ff;
+--cool-steel: #8c9a9eff;
+--grey: #747578ff;
+*/
