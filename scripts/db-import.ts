@@ -62,13 +62,18 @@ type ImportResult = {
 }
 
 const defaultInputPath = path.resolve("supabase/rawData")
-const defaultDatabaseUrl = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+const localDatabaseUrl = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 
 const rawArgs = process.argv.slice(2).filter((arg) => arg !== "--")
-let dryRun = false
+let dryRun = true
 let inputPath = defaultInputPath
 
 for (const arg of rawArgs) {
+  if (arg === "--write") {
+    dryRun = false
+    continue
+  }
+
   if (arg === "--dry-run") {
     dryRun = true
     continue
@@ -76,7 +81,7 @@ for (const arg of rawArgs) {
 
   if (arg.startsWith("--")) {
     console.error(`Unknown argument: ${arg}`)
-    console.error("Usage: bun run db:import:local [--dry-run] [path]")
+    console.error("Usage: bun run db:import [--write] [--dry-run] [path]")
     process.exit(1)
   }
 
@@ -472,6 +477,17 @@ function printSummary(result: ImportResult): void {
   console.log(`Unique contact-events: ${result.contactEvents.size}`)
 }
 
+function logProgress(
+  label: string,
+  completed: number,
+  total: number,
+  step: number,
+): void {
+  if (completed === 0 || completed === total || completed % step === 0) {
+    console.log(`${label}: ${completed}/${total}`)
+  }
+}
+
 async function main(): Promise<void> {
   const csvPaths = await resolveCsvPaths(inputPath)
 
@@ -481,6 +497,7 @@ async function main(): Promise<void> {
 
   console.log(`Import source: ${inputPath}`)
   console.log(`CSV files found: ${csvPaths.length}`)
+  console.log(`Mode: ${dryRun ? "dry-run" : "write"}`)
 
   const result = await collectImportData(csvPaths)
   printSummary(result)
@@ -490,22 +507,43 @@ async function main(): Promise<void> {
     return
   }
 
-  const databaseUrl = process.env.DATABASE_URL?.trim() || defaultDatabaseUrl
-  const sql = postgres(databaseUrl, { max: 1 })
+  const databaseUrl = process.env.DATABASE_URL?.trim()
+  if (!databaseUrl) {
+    throw new Error(
+      `Missing DATABASE_URL. Set it in .env. Local example: ${localDatabaseUrl}`,
+    )
+  }
+
+  console.log("Connecting to database...")
+
+  const sql = postgres(databaseUrl, {
+    max: 1,
+    connect_timeout: 10,
+  })
 
   try {
     await sql.begin(async (tx) => {
       const txSql = tx as unknown as postgres.Sql
+      console.log("Connected. Upserting events...")
       const eventIdByKey = new Map<string, string>()
+      let eventsProcessed = 0
       for (const event of result.events.values()) {
         eventIdByKey.set(event.key, await upsertEvent(txSql, event))
+        eventsProcessed += 1
+        logProgress("Events", eventsProcessed, result.events.size, 10)
       }
 
+      console.log("Upserting contacts...")
       const contactIdByEmail = new Map<string, string>()
+      let contactsProcessed = 0
       for (const contact of result.contacts.values()) {
         contactIdByEmail.set(contact.email, await upsertContact(txSql, contact))
+        contactsProcessed += 1
+        logProgress("Contacts", contactsProcessed, result.contacts.size, 100)
       }
 
+      console.log("Upserting contact-events...")
+      let contactEventsProcessed = 0
       for (const contactEvent of result.contactEvents.values()) {
         const contactId = contactIdByEmail.get(contactEvent.contactEmail)
         const eventId = eventIdByKey.get(contactEvent.eventKey)
@@ -517,6 +555,13 @@ async function main(): Promise<void> {
         }
 
         await upsertContactEvent(txSql, contactEvent, contactId, eventId)
+        contactEventsProcessed += 1
+        logProgress(
+          "Contact-events",
+          contactEventsProcessed,
+          result.contactEvents.size,
+          100,
+        )
       }
     })
   } finally {

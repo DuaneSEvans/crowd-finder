@@ -15,6 +15,8 @@ Required values:
 - `VITE_GOOGLE_MAPS_API_KEY`: browser-safe Google Maps JavaScript API key.
 - `VITE_SUPABASE_URL`: your Supabase project URL.
 - `VITE_SUPABASE_ANON_KEY`: your Supabase publishable/anon key.
+- `DATABASE_URL`: the Postgres connection string used by import scripts. Local value:
+  `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
 
 ## Supabase dashboard setup
 
@@ -52,7 +54,7 @@ Useful commands:
 bun run db:start
 bun run db:up
 bun run db:types
-bun run db:import:local
+bun run db:import
 bun run db:migrate:production
 bun run db:stop
 ```
@@ -67,10 +69,12 @@ Notes:
 
 - For normal local schema changes, create a new migration file, run `db:up`, then run `db:types`. This preserves local data.
 - `db:types` generates types from the local Supabase database into `src/lib/database.types.ts`.
-- `db:import:local` reads all CSV files in `supabase/rawData/`, aggregates contacts/events/contact-event counts, and upserts them into the local database.
-- `db:import:local -- --dry-run` parses and summarizes the import without writing to the database.
-- `db:import:local -- /absolute/or/relative/path` lets you target a single CSV file or a different directory.
-- The importer defaults to `postgresql://postgres:postgres@127.0.0.1:54322/postgres` and will use `DATABASE_URL` if you want to override it.
+- `db:import` reads all CSV files in `supabase/rawData/`, aggregates contacts/events/contact-event counts, and defaults to a dry run against whichever database `DATABASE_URL` points at.
+- `db:import -- --dry-run` explicitly parses and summarizes the import without writing to the database.
+- `db:import -- --write` performs the real database writes.
+- `db:import -- /absolute/or/relative/path` lets you target a single CSV file or a different directory.
+- To import locally, set `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres` in `.env`.
+- To import to production, replace `DATABASE_URL` in `.env` with your production Postgres connection string before running the same command.
 - `bun run db:migrate:production` links the hosted Supabase project and runs `supabase db push --dry-run`.
 - `bun run db:migrate:production --write` performs the real production push.
 - Remote schema admin is still available through the Supabase CLI directly when needed, for example:
@@ -103,7 +107,7 @@ Then:
 - `bun run dev`
 - `bun run build`
 - `bun run lint`
-- `bun run db:import:local`
+- `bun run db:import`
 - `bun run db:migrate:production`
 - `bun run db:start`
 - `bun run db:stop`
