@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "db:migrate:production": "bun scripts/db-migrate-production.mjs",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:up": "supabase migration up --local",
+    "db:types": "supabase gen types --local --lang typescript --schema public > src/lib/database.types.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -26,6 +31,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "supabase": "^2.77.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"

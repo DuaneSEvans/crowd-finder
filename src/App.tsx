@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useState } from "react"
-import type { FormEvent } from "react"
+import type { SyntheticEvent } from "react"
 import type { Session } from "@supabase/supabase-js"
 import MapWorkspace from "./components/MapWorkspace"
 import { supabase, supabaseConfigError } from "./lib/supabase"
@@ -101,7 +101,9 @@ function App() {
     }
   }, [])
 
-  const handleMagicLinkSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleMagicLinkSubmit = async (
+    event: SyntheticEvent<HTMLFormElement, SubmitEvent>,
+  ) => {
     event.preventDefault()
 
     if (!supabase) {

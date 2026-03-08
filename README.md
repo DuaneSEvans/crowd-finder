@@ -1,6 +1,6 @@
 # Crowd Finder
 
-Crowd Finder is a Vite + React map tool fronted by Supabase magic-link authentication. The current build is an authenticated map shell, ready for database-backed reads in the next phase.
+Crowd Finder is a Vite + React map tool fronted by Supabase magic-link authentication. The current build is an authenticated map shell, and the repo now includes a Supabase SQL migration workflow for the app schema.
 
 ## Frontend env
 
@@ -36,10 +36,46 @@ As of March 8, 2026, the app expects the following Supabase Auth configuration:
 
 The app sends magic links with `shouldCreateUser: false`, so an unknown email address cannot create a new account through the login form.
 
-Relevant Supabase docs:
+## Schema workflow
 
-- [Passwordless email logins](https://supabase.com/docs/guides/auth/auth-magic-link)
-- [Supabase Auth overview](https://supabase.com/docs/guides/auth)
+This repo uses the Supabase CLI and SQL migrations as the schema source of truth.
+
+Key paths:
+
+- `supabase/config.toml`
+- `supabase/migrations/`
+- `src/lib/database.types.ts`
+
+Useful commands:
+
+```bash
+bun run db:start
+bun run db:up
+bun run db:types
+bun run db:migrate:production
+bun run db:stop
+```
+
+Normal local workflow:
+
+1. Create a new SQL migration file in `supabase/migrations/`.
+2. Run `bun run db:up`.
+3. Run `bun run db:types`.
+
+Notes:
+
+- For normal local schema changes, create a new migration file, run `db:up`, then run `db:types`. This preserves local data.
+- `db:types` generates types from the local Supabase database into `src/lib/database.types.ts`.
+- `bun run db:migrate:production` links the hosted Supabase project and runs `supabase db push --dry-run`.
+- `bun run db:migrate:production --write` performs the real production push.
+- Remote schema admin is still available through the Supabase CLI directly when needed, for example:
+
+```bash
+bunx supabase link --project-ref hdeyrmgwudbmnanlsmll
+bunx supabase db push
+```
+
+- Remote schema deployment should be an explicit release step, not part of the Cloudflare Pages build.
 
 ## Local development
 
@@ -62,3 +98,8 @@ Then:
 - `bun run dev`
 - `bun run build`
 - `bun run lint`
+- `bun run db:migrate:production`
+- `bun run db:start`
+- `bun run db:stop`
+- `bun run db:up`
+- `bun run db:types`
