@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "db:geocode": "bun scripts/db-geocode.ts",
     "db:import": "bun scripts/db-import.ts",
     "db:migrate:production": "bun scripts/db-migrate-production.ts",
     "db:start": "supabase start",

@@ -62,7 +62,6 @@ type ImportResult = {
 }
 
 const defaultInputPath = path.resolve("supabase/rawData")
-const localDatabaseUrl = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 
 const rawArgs = process.argv.slice(2).filter((arg) => arg !== "--")
 let dryRun = true
@@ -509,9 +508,7 @@ async function main(): Promise<void> {
 
   const databaseUrl = process.env.DATABASE_URL?.trim()
   if (!databaseUrl) {
-    throw new Error(
-      `Missing DATABASE_URL. Set it in .env. Local example: ${localDatabaseUrl}`,
-    )
+    throw new Error("Missing DATABASE_URL. Set it in .env before running db:import.")
   }
 
   console.log("Connecting to database...")

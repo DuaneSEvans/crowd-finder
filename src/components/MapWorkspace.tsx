@@ -2,8 +2,23 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { importLibrary, setOptions } from "@googlemaps/js-api-loader"
 import styles from "../App.module.css"
+import type { Tables } from "../lib/database.types"
+import { supabase } from "../lib/supabase"
 
 type LatLngLiteral = google.maps.LatLngLiteral
+type ContactMapRow = Pick<
+  Tables<"contacts">,
+  | "id"
+  | "email"
+  | "first_name"
+  | "last_name"
+  | "street"
+  | "postcode"
+  | "city"
+  | "country"
+  | "lat"
+  | "lng"
+>
 
 type Customer = {
   id: string
@@ -58,12 +73,59 @@ const MAP_STYLES = {
   borderRadius: "0",
 }
 
+function buildCustomerName(contact: ContactMapRow) {
+  const fullName = [contact.first_name, contact.last_name]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+
+  return fullName || contact.email
+}
+
+function buildCustomerAddress(contact: ContactMapRow) {
+  const address = [
+    contact.street,
+    contact.city,
+    contact.postcode,
+    contact.country,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(", ")
+
+  return address || "No address on file"
+}
+
+function buildCustomer(contact: ContactMapRow): Customer | null {
+  if (contact.lat === null || contact.lng === null) {
+    return null
+  }
+
+  return {
+    id: contact.id,
+    name: buildCustomerName(contact),
+    email: contact.email,
+    address: buildCustomerAddress(contact),
+    location: {
+      lat: contact.lat,
+      lng: contact.lng,
+    },
+  }
+}
+
 function MapWorkspace() {
   const missingApiKey = !GOOGLE_API_KEY
-  const customers = EMPTY_CUSTOMERS
+  const missingSupabase = !supabase
+  const [customers, setCustomers] = useState<Customer[]>(EMPTY_CUSTOMERS)
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(
+    () => !missingSupabase,
+  )
+  const [totalContactsCount, setTotalContactsCount] = useState(0)
   const [mapsApi, setMapsApi] = useState<typeof google.maps | null>(null)
   const [error, setError] = useState<string | null>(
-    missingApiKey ? "Missing VITE_GOOGLE_MAPS_API_KEY env var" : null,
+    missingApiKey
+      ? "Missing VITE_GOOGLE_MAPS_API_KEY env var"
+      : missingSupabase
+        ? "Missing Supabase configuration."
+        : null,
   )
   const [radiusMeters, setRadiusMeters] = useState(25000)
   const [circleCenter, setCircleCenter] = useState<LatLngLiteral>(DEFAULT_CENTER)
@@ -90,6 +152,63 @@ function MapWorkspace() {
   const dragRafRef = useRef<number | null>(null)
   const draggingRef = useRef(false)
   const toastTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const client = supabase
+
+    if (!client) {
+      return
+    }
+
+    let isMounted = true
+
+    const loadContacts = async () => {
+      setIsLoadingCustomers(true)
+
+      const [contactsResult, countResult] = await Promise.all([
+        client
+          .from("contacts")
+          .select(
+            "id, email, first_name, last_name, street, postcode, city, country, lat, lng",
+          )
+          .not("lat", "is", null)
+          .not("lng", "is", null)
+          .order("last_name", { ascending: true })
+          .order("first_name", { ascending: true }),
+        client.from("contacts").select("id", { count: "exact", head: true }),
+      ])
+
+      if (!isMounted) {
+        return
+      }
+
+      if (contactsResult.error) {
+        setError(`Failed to load contacts: ${contactsResult.error.message}`)
+        setIsLoadingCustomers(false)
+        return
+      }
+
+      if (countResult.error) {
+        setError(`Failed to count contacts: ${countResult.error.message}`)
+        setIsLoadingCustomers(false)
+        return
+      }
+
+      const nextCustomers = (contactsResult.data ?? [])
+        .map(buildCustomer)
+        .filter((customer): customer is Customer => customer !== null)
+
+      setCustomers(nextCustomers)
+      setTotalContactsCount(countResult.count ?? nextCustomers.length)
+      setIsLoadingCustomers(false)
+    }
+
+    void loadContacts()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!GOOGLE_API_KEY) return
@@ -421,6 +540,9 @@ function MapWorkspace() {
                   <div className={styles["panel-caption"]}>
                     {customers.length} plotted contact
                     {customers.length === 1 ? "" : "s"}
+                    {totalContactsCount > customers.length
+                      ? ` • ${totalContactsCount - customers.length} still need geocoding`
+                      : ""}
                   </div>
                 </div>
                 <div className={styles["panel-actions"]}>
@@ -460,10 +582,15 @@ function MapWorkspace() {
                       <div className={styles["list-sub"]}>{customer.address}</div>
                     </div>
                   ))}
-                  {!customersInRadius.length ? (
+                  {isLoadingCustomers ? (
+                    <div className={styles.muted}>Loading contacts…</div>
+                  ) : !customersInRadius.length ? (
                     <div className={styles.muted}>
-                      No contacts are loaded yet. The radius selector is ready for
-                      database-backed results.
+                      {customers.length
+                        ? "No plotted contacts fall within the current radius."
+                        : totalContactsCount
+                          ? "Contacts are loaded, but none have geocodes yet."
+                          : "No contacts are in the database yet."}
                     </div>
                   ) : null}
                 </div>

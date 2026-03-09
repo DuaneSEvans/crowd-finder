@@ -17,6 +17,17 @@ Required values:
 - `VITE_SUPABASE_ANON_KEY`: your Supabase publishable/anon key.
 - `DATABASE_URL`: the Postgres connection string used by import scripts. Local value:
   `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+- `GEOAPIFY_API_KEY`: API key for the separate geocoding script.
+
+For local app development against the local Supabase stack:
+
+- `VITE_SUPABASE_URL` should be `http://127.0.0.1:54321`
+- `VITE_SUPABASE_ANON_KEY` should be the local publishable key printed by `bun run db:start`
+
+For production:
+
+- `VITE_SUPABASE_URL` should be your hosted Supabase URL
+- `VITE_SUPABASE_ANON_KEY` should be your hosted Supabase publishable key
 
 ## Supabase dashboard setup
 
@@ -55,6 +66,7 @@ bun run db:start
 bun run db:up
 bun run db:types
 bun run db:import
+bun run db:geocode
 bun run db:migrate:production
 bun run db:stop
 ```
@@ -75,6 +87,9 @@ Notes:
 - `db:import -- /absolute/or/relative/path` lets you target a single CSV file or a different directory.
 - To import locally, set `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres` in `.env`.
 - To import to production, replace `DATABASE_URL` in `.env` with your production Postgres connection string before running the same command.
+- `db:geocode` queries contacts missing `lat`/`lng` and defaults to a dry run with no API calls.
+- `db:geocode -- --write` calls Geoapify and updates the current database pointed to by `DATABASE_URL`.
+- The geocoder de-duplicates identical address lookups, so multiple contacts at the same address only consume one Geoapify request.
 - `bun run db:migrate:production` links the hosted Supabase project and runs `supabase db push --dry-run`.
 - `bun run db:migrate:production --write` performs the real production push.
 - Remote schema admin is still available through the Supabase CLI directly when needed, for example:
@@ -106,6 +121,7 @@ Then:
 
 - `bun run dev`
 - `bun run build`
+- `bun run db:geocode`
 - `bun run lint`
 - `bun run db:import`
 - `bun run db:migrate:production`
